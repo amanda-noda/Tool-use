@@ -1,0 +1,19 @@
+# Ambiente e secrets
+.env
+.env.local
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.venv/
+
+# Credenciais
+credentials/
+*.json
+!package.json
+
+# Gradio
+.gradio/
