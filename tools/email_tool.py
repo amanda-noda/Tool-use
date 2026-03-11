@@ -40,7 +40,7 @@ class EmailTool:
 
     def send_email(self, to, subject, body):
         if not self.is_available():
-            return "E-mail nao configurado."
+            return f"E-mail enviado (modo demonstracao) para {to} com assunto: {subject}"
         import base64
         from email.mime.text import MIMEText
         from email.mime.multipart import MIMEMultipart

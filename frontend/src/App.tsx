@@ -13,6 +13,21 @@ const API_URL = '/api'
 interface Message {
   role: 'user' | 'assistant'
   content: string
+  type?: 'calendar' | 'chat'
+}
+
+function formatCalendarContent(content: string) {
+  const lines = content.trim().split('\n')
+  const eventLines = lines.filter((l) => l.trim().startsWith('- '))
+  if (eventLines.length === 0) return null
+  const header = lines
+    .filter((l) => l.trim() && !l.trim().startsWith('- '))
+    .join(' ')
+    .trim()
+  return {
+    header,
+    events: eventLines.map((e) => e.replace(/^-\s*/, '')),
+  }
 }
 
 const SUGGESTIONS = [
@@ -67,7 +82,30 @@ export default function App() {
     try {
       const res = await fetch(`${API_URL}/calendar?days=7`)
       const data = await res.json()
-      setMessages((m) => [...m, { role: 'assistant', content: data.events }])
+      setMessages((m) => [...m, { role: 'assistant', content: data.events, type: 'calendar' }])
+    } catch (e) {
+      setMessages((m) => [...m, { role: 'assistant', content: `Erro: ${e}` }])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const [showEmailModal, setShowEmailModal] = useState(false)
+  const [emailForm, setEmailForm] = useState({ to: '', subject: '', body: '' })
+
+  const sendEmail = async (to: string, subject: string, body: string) => {
+    setLoading(true)
+    setMessages((m) => [...m, { role: 'user', content: `Enviar e-mail para ${to}: ${subject}` }])
+    try {
+      const res = await fetch(`${API_URL}/email`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ to, subject, body }),
+      })
+      const data = await res.json()
+      setMessages((m) => [...m, { role: 'assistant', content: data.result }])
+      setShowEmailModal(false)
+      setEmailForm({ to: '', subject: '', body: '' })
     } catch (e) {
       setMessages((m) => [...m, { role: 'assistant', content: `Erro: ${e}` }])
     } finally {
@@ -78,6 +116,8 @@ export default function App() {
   const handleSuggestion = (label: string, prompt: string) => {
     if (label === 'Calendário') {
       loadCalendar()
+    } else if (label === 'E-mail') {
+      setShowEmailModal(true)
     } else {
       setInput(prompt)
     }
@@ -112,6 +152,14 @@ export default function App() {
           >
             <IconCalendar />
             <span className="font-medium text-sm">Calendário</span>
+          </button>
+          <button
+            onClick={() => setShowEmailModal(true)}
+            disabled={loading}
+            className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-cyan-200/90 hover:bg-cyan-500/10 hover:text-cyan-100 transition-all duration-200 text-left disabled:opacity-50"
+          >
+            <IconMail />
+            <span className="font-medium text-sm">E-mail</span>
           </button>
         </nav>
 
@@ -170,24 +218,55 @@ export default function App() {
                 <p className="text-slate-500 text-sm">Clique em uma sugestão ou digite abaixo</p>
               </div>
             )}
-            {messages.map((msg, i) => (
-              <div
-                key={i}
-                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-              >
+            {messages.map((msg, i) => {
+              const formatted = msg.type === 'calendar' ? formatCalendarContent(msg.content) : null
+              return (
                 <div
-                  className={`max-w-[85%] rounded-2xl px-4 py-3 ${
-                    msg.role === 'user'
-                      ? 'bg-gradient-to-r from-cyan-600/40 to-teal-600/40 border border-cyan-400/25'
-                      : 'bg-slate-700/40 border border-cyan-500/10'
-                  }`}
+                  key={i}
+                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
-                  <p className="text-slate-100 text-[15px] leading-relaxed whitespace-pre-wrap font-medium">
-                    {msg.content}
-                  </p>
+                  <div
+                    className={`max-w-[85%] rounded-2xl px-4 py-3 ${
+                      msg.role === 'user'
+                        ? 'bg-gradient-to-r from-cyan-600/40 to-teal-600/40 border border-cyan-400/25'
+                        : 'bg-slate-700/40 border border-cyan-500/10'
+                    }`}
+                  >
+                    {formatted?.events?.length ? (
+                      <div>
+                        {formatted.header && (
+                          <p className="text-cyan-300/90 text-sm font-medium mb-3">
+                            {formatted.header}
+                          </p>
+                        )}
+                        <ul className="space-y-2">
+                          {formatted.events.map((evt, j) => {
+                            const parts = evt.split(/\s+[—\-]\s+/)
+                            const datePart = parts[0]?.trim() ?? ''
+                            const title = parts.slice(1).join(' — ').trim() || evt
+                            return (
+                              <li
+                                key={j}
+                                className="flex items-center gap-3 py-2 px-3 rounded-lg bg-slate-800/50 border border-cyan-500/10"
+                              >
+                                <span className="text-cyan-400 text-sm font-mono shrink-0">
+                                  {datePart}
+                                </span>
+                                <span className="text-slate-100 font-medium">{title}</span>
+                              </li>
+                            )
+                          })}
+                        </ul>
+                      </div>
+                    ) : (
+                      <p className="text-slate-100 text-[15px] leading-relaxed whitespace-pre-wrap font-medium">
+                        {msg.content}
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
             {loading && (
               <div className="flex justify-start">
                 <div className="bg-slate-700/40 rounded-2xl px-4 py-3 animate-pulse">
@@ -224,6 +303,86 @@ export default function App() {
           </form>
         </div>
       </main>
+
+      {/* Modal E-mail */}
+      {showEmailModal && (
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => !loading && setShowEmailModal(false)}
+        >
+          <div
+            className="bg-slate-800 border border-cyan-500/30 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6 border-b border-cyan-500/20">
+              <h2 className="text-xl font-bold text-cyan-100 flex items-center gap-2">
+                <IconMail />
+                Novo e-mail
+              </h2>
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                if (emailForm.to.trim() && emailForm.subject.trim()) {
+                  sendEmail(emailForm.to.trim(), emailForm.subject.trim(), emailForm.body.trim())
+                }
+              }}
+              className="p-6 space-y-4"
+            >
+              <div>
+                <label className="block text-sm font-medium text-cyan-300 mb-1.5">Para</label>
+                <input
+                  type="email"
+                  value={emailForm.to}
+                  onChange={(e) => setEmailForm((f) => ({ ...f, to: e.target.value }))}
+                  placeholder="email@exemplo.com"
+                  required
+                  className="w-full rounded-xl bg-slate-900/80 border border-cyan-500/20 px-4 py-2.5 text-cyan-100 placeholder-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-cyan-300 mb-1.5">Assunto</label>
+                <input
+                  type="text"
+                  value={emailForm.subject}
+                  onChange={(e) => setEmailForm((f) => ({ ...f, subject: e.target.value }))}
+                  placeholder="Assunto do e-mail"
+                  required
+                  className="w-full rounded-xl bg-slate-900/80 border border-cyan-500/20 px-4 py-2.5 text-cyan-100 placeholder-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-400/40"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-cyan-300 mb-1.5">Mensagem</label>
+                <textarea
+                  value={emailForm.body}
+                  onChange={(e) => setEmailForm((f) => ({ ...f, body: e.target.value }))}
+                  placeholder="Digite sua mensagem..."
+                  rows={4}
+                  className="w-full rounded-xl bg-slate-900/80 border border-cyan-500/20 px-4 py-2.5 text-cyan-100 placeholder-cyan-500/50 focus:outline-none focus:ring-2 focus:ring-cyan-400/40 resize-none"
+                />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowEmailModal(false)}
+                  disabled={loading}
+                  className="flex-1 py-2.5 rounded-xl border border-cyan-500/30 text-cyan-200 hover:bg-cyan-500/10 transition-colors disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-500 text-white font-semibold hover:from-cyan-400 hover:to-teal-400 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  <IconSend />
+                  Enviar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

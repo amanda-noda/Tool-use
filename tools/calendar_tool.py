@@ -1,8 +1,30 @@
 """Ferramenta de calendario (Google Calendar)."""
 import sys
 from pathlib import Path
+from datetime import datetime, timedelta
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 import config
+
+
+def _format_event(date_str: str, title: str) -> str:
+    """Formata um evento para exibicao."""
+    return f"- {date_str} — {title}"
+
+
+def _get_demo_events(days_ahead: int) -> str:
+    """Retorna eventos de demonstracao quando o Google Calendar nao esta configurado."""
+    now = datetime.now()
+    demo = [
+        (now + timedelta(hours=2), "Reuniao com equipe"),
+        (now + timedelta(days=1, hours=10), "Consulta medica"),
+        (now + timedelta(days=2, hours=14), "Apresentacao do projeto"),
+        (now + timedelta(days=3, hours=9), "Cafe com cliente"),
+        (now + timedelta(days=5, hours=16), "Treino na academia"),
+    ]
+    lines = [_format_event(e[0].strftime("%d/%m %H:%M"), e[1]) for e in demo]
+    header = f"Eventos dos proximos {days_ahead} dias (modo demonstracao):\n\n"
+    return header + "\n".join(lines)
 
 
 class CalendarTool:
@@ -40,8 +62,7 @@ class CalendarTool:
 
     def get_events(self, days_ahead=7, max_results=10):
         if not self.is_available():
-            return "Calendario nao configurado."
-        from datetime import datetime, timedelta
+            return _get_demo_events(days_ahead)
         from googleapiclient.errors import HttpError
         try:
             now = datetime.utcnow()

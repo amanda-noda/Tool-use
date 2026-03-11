@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from assistant import PersonalAssistant
 from tools.calendar_tool import CalendarTool
+from tools.email_tool import EmailTool
 
 app = FastAPI(title="Assistente Pessoal API")
 
@@ -23,16 +24,18 @@ app.add_middleware(
 
 assistant = None
 calendar_tool = None
+email_tool = None
 
 
 @app.on_event("startup")
 async def startup():
-    global assistant, calendar_tool
+    global assistant, calendar_tool, email_tool
     try:
         assistant = PersonalAssistant()
     except RuntimeError:
         assistant = None
     calendar_tool = CalendarTool()
+    email_tool = EmailTool()
 
 
 class ChatRequest(BaseModel):
@@ -58,6 +61,24 @@ async def chat(req: ChatRequest):
 async def get_calendar(days: int = 7):
     events = calendar_tool.get_events(days_ahead=days) if calendar_tool else "Calendario nao configurado."
     return {"events": events}
+
+
+class EmailRequest(BaseModel):
+    to: str
+    subject: str
+    body: str
+
+
+class EmailResponse(BaseModel):
+    result: str
+
+
+@app.post("/email", response_model=EmailResponse)
+async def send_email(req: EmailRequest):
+    if not email_tool:
+        return EmailResponse(result="E-mail nao configurado.")
+    result = email_tool.send_email(to=req.to, subject=req.subject, body=req.body)
+    return EmailResponse(result=result)
 
 
 @app.get("/status")
