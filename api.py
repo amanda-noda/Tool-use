@@ -57,9 +57,12 @@ async def chat(req: ChatRequest):
         return ChatResponse(response="Digite uma mensagem.")
 
     # Perguntas simples (data, hora, clima, notícias) - funciona sem LLM
-    simple = answer_simple_question(msg, web_tool=web_tool)
-    if simple is not None:
-        return ChatResponse(response=simple)
+    try:
+        simple = answer_simple_question(msg, web_tool=web_tool)
+        if simple is not None:
+            return ChatResponse(response=simple)
+    except Exception as e:
+        pass  # Continua para o assistente em caso de erro
 
     # Perguntas complexas - usa o assistente com LLM
     if not assistant:

@@ -56,6 +56,13 @@ const SUGGESTIONS = [
   { label: 'Resumos', icon: IconSummarize, prompt: 'Resumir o seguinte texto' },
 ] as const
 
+const QUICK_PROMPTS = [
+  'Que dia é hoje?',
+  'Qual a temperatura?',
+  'Quais as notícias?',
+  'Que horas são?',
+]
+
 export default function App() {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -273,7 +280,18 @@ export default function App() {
                   <IconSparkles />
                 </div>
                 <p className="text-white/70 font-medium mb-1 text-lg">Nenhuma mensagem ainda</p>
-                <p className="text-white/40 text-sm">Clique em uma sugestão ou digite abaixo para começar</p>
+                <p className="text-white/40 text-sm mb-6">Pergunte sobre data, hora, clima, notícias ou use as sugestões</p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {QUICK_PROMPTS.map((prompt) => (
+                    <button
+                      key={prompt}
+                      onClick={() => sendMessage(prompt)}
+                      className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/80 text-sm hover:bg-white/10 hover:text-white transition-colors"
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
             {messages.map((msg, i) => {
@@ -377,7 +395,7 @@ export default function App() {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Digite sua mensagem..."
+              placeholder="Pergunte: que dia é hoje, temperatura, notícias..."
               className="flex-1 rounded-2xl bg-white/5 border border-white/10 px-5 py-3.5 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-violet-400/50 focus:border-violet-400/30 text-[15px] font-medium transition-all backdrop-blur-sm"
             />
             <button

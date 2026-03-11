@@ -87,15 +87,15 @@ def answer_simple_question(message: str, web_tool=None) -> Optional[str]:
     msg = _normalize(message)
 
     # Data / dia / hora
-    if _match_keywords(msg, ["que dia", "qual dia", "data de hoje", "que data", "dia é hoje"]):
+    if _match_keywords(msg, ["que dia", "qual dia", "data de hoje", "que data", "dia é hoje", "dia hoje", "qual a data", "que dia e hoje"]):
         return get_current_datetime()
 
-    if _match_keywords(msg, ["que horas", "qual hora", "horário", "que horário"]):
+    if _match_keywords(msg, ["que horas", "qual hora", "horário", "que horário", "horas são", "que horas são", "que horas sao"]):
         now = datetime.now()
         return f"São {now.hour:02d}:{now.minute:02d}."
 
     # Clima / temperatura / previsão
-    if _match_keywords(msg, ["temperatura", "clima", "previsão", "previsao", "tempo", "faz calor", "faz frio", "como está o tempo"]):
+    if _match_keywords(msg, ["temperatura", "clima", "previsão", "previsao", "tempo", "faz calor", "faz frio", "como está o tempo", "vai chover", "chover", "previsão do tempo"]):
         # Tentar extrair cidade
         cidade = None
         for c in ["em ", "de ", "em ", "na ", "no "]:

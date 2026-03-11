@@ -13,13 +13,26 @@ sys.path.insert(0, str(Path(__file__).parent))
 import gradio as gr
 from assistant import PersonalAssistant
 from tools.calendar_tool import CalendarTool
+from tools.web_tool import WebTool
+from tools.simple_questions import answer_simple_question
 
 
-def chat_fn(message, history, assistant):
+def chat_fn(message, history, assistant, web_tool):
     """Processa mensagem e retorna resposta do assistente."""
+    msg = (message or "").strip()
+    if not msg:
+        return "Digite uma mensagem."
+
+    # Perguntas simples (data, hora, clima, notícias) - funciona sem LLM
+    simple = answer_simple_question(msg, web_tool=web_tool)
+    if simple is not None:
+        return simple
+
+    # Usa o assistente com LLM
+    if assistant is None or not hasattr(assistant, "chat"):
+        return "Configure OPENAI_API_KEY no .env para perguntas complexas. Você pode perguntar: que dia é hoje, temperatura, notícias."
     try:
-        response = assistant.chat(message)
-        return response
+        return assistant.chat(msg)
     except Exception as e:
         return f"Erro: {str(e)}"
 
@@ -31,12 +44,10 @@ def main():
     except RuntimeError as e:
         print(f"Aviso: {e}")
         print("Iniciando em modo demo - configure .env para usar o assistente.")
-        class DemoAssistant:
-            def chat(self, msg): return "Configure OPENAI_API_KEY no arquivo .env para usar o assistente."
-            def get_status(self): return {"llm": "Nao configurado", "calendario": "-", "e-mail": "-", "pesquisa web": "-"}
-        assistant = DemoAssistant()
+        assistant = None
 
     calendar_tool = CalendarTool()
+    web_tool = WebTool()
 
     base = Path(__file__).resolve().parent
     logo_path = base / "assets" / "logo.png"
@@ -55,7 +66,7 @@ def main():
         <path d="M24 16 L24 36 M18 28 L24 36 L30 28" fill="none" stroke="#e0f7fa" stroke-width="2"/>
     </svg>'''
 
-    status = assistant.get_status()
+    status = assistant.get_status() if assistant else {"llm": "Nao configurado", "calendario": "-", "e-mail": "-", "pesquisa web": "-"}
     status_items = "".join(
         f'<span class="status-item">{html.escape(k)}: <strong>{html.escape(str(v))}</strong></span>'
         for k, v in status.items()
@@ -447,7 +458,7 @@ def main():
                 return chat_history
             chat_history = chat_history or []
             chat_history.append([message, ""])
-            response = chat_fn(message, chat_history, assistant)
+            response = chat_fn(message, chat_history, assistant, web_tool)
             chat_history[-1][1] = response
             return chat_history
 
@@ -467,7 +478,7 @@ def main():
 
     demo.launch(
         server_name="127.0.0.1",
-        server_port=8767,
+        server_port=8768,
         share=False,
         css=custom_css,
     )
