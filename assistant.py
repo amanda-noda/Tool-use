@@ -1,5 +1,6 @@
 """Assistente Pessoal - Orquestrador principal."""
 import re
+from datetime import datetime
 import config
 from llm.factory import get_llm_provider
 from tools.calendar_tool import CalendarTool
@@ -7,7 +8,13 @@ from tools.email_tool import EmailTool
 from tools.web_tool import WebTool
 
 
-SYSTEM_PROMPT = """Voce e um assistente pessoal util que pode realizar tarefas reais.
+def _get_system_prompt():
+    now = datetime.now()
+    data_str = now.strftime("%d/%m/%Y")
+    hora_str = now.strftime("%H:%M")
+    return f"""Voce e um assistente pessoal util que pode realizar tarefas reais.
+
+Data e hora atuais: {data_str} {hora_str}
 
 Voce tem acesso as seguintes ferramentas (use os comandos exatamente como mostrado):
 
@@ -18,6 +25,7 @@ Voce tem acesso as seguintes ferramentas (use os comandos exatamente como mostra
 
 Quando o usuario pedir algo que envolva essas acoes, use o comando apropriado.
 Se nao precisar de ferramenta, responda diretamente.
+Voce pode responder perguntas sobre data, hora, clima, noticias e outros temas gerais.
 Seja conciso e util. Responda em portugues."""
 
 
@@ -74,7 +82,7 @@ class PersonalAssistant:
     def chat(self, user_message, max_tool_rounds=3):
         self.history.append({"role": "user", "content": user_message})
 
-        messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+        messages = [{"role": "system", "content": _get_system_prompt()}]
         tools_desc = []
         if self.calendar.is_available():
             tools_desc.append("- CALENDARIO: consultar eventos")
